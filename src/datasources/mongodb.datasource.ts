@@ -4,7 +4,7 @@ import {juggler} from '@loopback/repository';
 const config = {
   name: 'mongodb',
   connector: 'mongodb',
-  url: 'mongodb+srv://Prog_Web:progweb2022@clusterprogweb.flncwbg.mongodb.net/TiendaVitualMascotaFelizdb?retryWrites=true&w=majority',
+  url: 'INGRESA TU CONEXION A MONGO DB',
   host: '',
   port: 0,
   user: '',
