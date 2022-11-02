@@ -1,30 +1,57 @@
+import {service} from '@loopback/core';
 import {
   Count,
   CountSchema,
   Filter,
   FilterExcludingWhere,
   repository,
-  Where,
+  Where
 } from '@loopback/repository';
 import {
-  post,
-  param,
-  get,
-  getModelSchemaRef,
-  patch,
-  put,
-  del,
-  requestBody,
-  response,
+  del, get,
+  getModelSchemaRef, HttpErrors, param, patch, post, put, requestBody,
+  response
 } from '@loopback/rest';
-import {Usuario} from '../models';
+import {Llaves} from '../config/llaves';
+import {Credenciales, Usuario} from '../models';
 import {UsuarioRepository} from '../repositories';
+import {AutenticacionService} from '../services';
+const fetch = require('node-fetch');
 
 export class UsuarioController {
   constructor(
     @repository(UsuarioRepository)
-    public usuarioRepository : UsuarioRepository,
-  ) {}
+    public usuarioRepository: UsuarioRepository,
+    @service(AutenticacionService)
+    public servicioAutenticacion: AutenticacionService
+  ) { }
+
+  @post("/identificarUsuario", {
+    responses: {
+      '200': {
+        description: "Identificación de usuarios"
+      }
+    }
+  })
+
+  async identificarUsuario(
+    @requestBody() credenciales: Credenciales
+  ) {
+    let u = await this.servicioAutenticacion.IdentificarUsuario(credenciales.usuario, credenciales.clave);
+    if (u) {
+      let token = this.servicioAutenticacion.GenerarTokenTwt(u);
+      return {
+        datos: {
+          nombre: u.nombres,
+          correo: u.correo,
+          id: u.id
+        },
+        tk: token
+      }
+    } else {
+      throw new HttpErrors[404]("Datos inválidos");
+    }
+  }
 
   @post('/usuarios')
   @response(200, {
@@ -44,7 +71,31 @@ export class UsuarioController {
     })
     usuario: Omit<Usuario, 'id'>,
   ): Promise<Usuario> {
-    return this.usuarioRepository.create(usuario);
+
+    let clave = this.servicioAutenticacion.GenerarClave();
+    let claveCifrada = this.servicioAutenticacion.CifrarClave(clave);
+    usuario.clave = claveCifrada;
+    let p = await this.usuarioRepository.create(usuario);
+
+    //notificar al usuario
+    let destino = usuario.correo;
+    let asunto = 'Registro en la plataforma';
+    let contenido = `Hola ${usuario.nombres} ${usuario.apellidos}, su nombre de usuario es: ${usuario.correo} y su contraseña es: ${clave}.`
+    //fetch(`http://127.0.0.1:5000/envio-correo?correo_destino=${destino}&asunto=${asunto}&contenido=${contenido}`)
+    fetch(`${Llaves.urlServicioNotificaciones}/envio-correo?correo_destino=${destino}&asunto=${asunto}&contenido=${contenido}`)
+      .then((data: any) => {
+        console.log(data);
+      })
+
+    let destinoCel = usuario.celular;
+    fetch(`http://127.0.0.1:5000/sms?telefono=${destinoCel}&mensaje=${contenido}`)
+      .then((data: any) => {
+        console.log(data);
+      })
+
+    return p;
+
+
   }
 
   @get('/usuarios/count')
