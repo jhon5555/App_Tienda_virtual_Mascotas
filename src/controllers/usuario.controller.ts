@@ -25,6 +25,79 @@ export class UsuarioController {
     @service(AutenticacionService)
     public servicioAutenticacion: AutenticacionService
   ) { }
+  @post('/actualizacionClaveByUsuario', {
+    responses: {
+      '200': {
+        description: "Actualizacion de clave por parte del usuario"
+      }
+    }
+  })
+  async actualizarClavebyUsuario(
+    @requestBody() credenciales: Credenciales
+  ){
+    let clave = credenciales.clave;
+    let claveCifrada = this.servicioAutenticacion.CifrarClave(clave);
+    let usuarioEncontrado = await this.usuarioRepository.findOne({where : {correo: credenciales.usuario}});
+    if(usuarioEncontrado!=null){
+      usuarioEncontrado.clave = claveCifrada;
+      let id = usuarioEncontrado.id;
+      let destino = usuarioEncontrado.correo;
+      let asunto = 'Confirmacion de clave';
+      await this.usuarioRepository.updateById(id, usuarioEncontrado);
+      let contenido = `Hola ${usuarioEncontrado.nombres} ${usuarioEncontrado.apellidos}, su nombre de usuario es: ${usuarioEncontrado.correo} y la contraseña asignada por usted es: ${clave}.`
+    //fetch(`http://127.0.0.1:5000/envio-correo?correo_destino=${destino}&asunto=${asunto}&contenido=${contenido}`)
+    fetch(`${Llaves.urlServicioNotificaciones}/envio-correo?correo_destino=${destino}&asunto=${asunto}&contenido=${contenido}`)
+      .then((data: any) => {
+        console.log(data);
+      })
+      let destinoCel = usuarioEncontrado.celular;
+      fetch(`${Llaves.urlServicioNotificaciones}/sms?telefono=${destinoCel}&mensaje=${contenido}`)
+        .then((data: any) => {
+          console.log(data);
+        })
+      return usuarioEncontrado;
+    }else{
+      throw new HttpErrors[401]("Usuario invalido");
+    }
+  }
+
+
+  @post('/actualizacionClaveBySystem', {
+    responses: {
+      '200': {
+        description: "Actualizacion de clave"
+      }
+    }
+  })
+  async actualizarClave(
+    @requestBody() credenciales: Omit<Credenciales, 'clave'>
+  ){
+    let clave = this.servicioAutenticacion.GenerarClave();
+    let claveCifrada = this.servicioAutenticacion.CifrarClave(clave);
+    let usuarioEncontrado = await this.usuarioRepository.findOne({where : {correo: credenciales.usuario}});
+    if (usuarioEncontrado!= null){
+      usuarioEncontrado.clave = claveCifrada;
+      let id = usuarioEncontrado.id;
+      let destino = usuarioEncontrado.correo;
+      let asunto = 'Actualizacion de clave de usuario';
+      await this.usuarioRepository.updateById(id, usuarioEncontrado);
+      let contenido = `Hola ${usuarioEncontrado.nombres} ${usuarioEncontrado.apellidos}, su nombre de usuario es: ${usuarioEncontrado.correo} y su nueva contraseña es: ${clave}.`
+    //fetch(`http://127.0.0.1:5000/envio-correo?correo_destino=${destino}&asunto=${asunto}&contenido=${contenido}`)
+    fetch(`${Llaves.urlServicioNotificaciones}/envio-correo?correo_destino=${destino}&asunto=${asunto}&contenido=${contenido}`)
+      .then((data: any) => {
+        console.log(data);
+      })
+      let destinoCel = usuarioEncontrado.celular;
+      fetch(`${Llaves.urlServicioNotificaciones}/sms?telefono=${destinoCel}&mensaje=${contenido}`)
+        .then((data: any) => {
+          console.log(data);
+        })
+      return usuarioEncontrado;
+    }else{
+      throw new HttpErrors[401]("Usuario invalido");
+    }
+
+  }
 
   @post("/identificarUsuario", {
     responses: {
