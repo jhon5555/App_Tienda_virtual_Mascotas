@@ -25,6 +25,8 @@ export class UsuarioController {
     @service(AutenticacionService)
     public servicioAutenticacion: AutenticacionService
   ) { }
+
+  //actualizacion de la clave generada por el usuario
     @post('/actualizacionClaveByUsuario', {
       responses: {
         '200': {
@@ -61,7 +63,7 @@ export class UsuarioController {
       }
     }
 
-
+//actualizacion de la clave generada por el sistema
   @post('/actualizacionClaveBySystem', {
     responses: {
       '200': {
